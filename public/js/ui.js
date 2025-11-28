@@ -109,9 +109,14 @@ class UI {
         await this.windowManager.resize(width, height);
     }
 
-    renderUsers(clients, isConnected) {
+    renderUsers(clients, isConnected, isConnectedToServer) {
         if (!isConnected) {
             this.userList.innerHTML = '<div style="color: rgba(255,255,255,0.6); text-align: center; padding: 20px; font-size: 12px;">Не подключено к TS6</div>';
+            return;
+        }
+        
+        if (!isConnectedToServer) {
+            this.userList.innerHTML = '<div style="color: rgba(255,255,255,0.6); text-align: center; padding: 20px; font-size: 12px;">Нет подключения к серверу</div>';
             return;
         }
         

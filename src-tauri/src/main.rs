@@ -8,38 +8,49 @@ async fn connect_ts6(window: tauri::Window, api_key: String) -> Result<(), Strin
     use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
     use futures_util::{StreamExt, SinkExt};
     use serde_json::json;
+    use tokio::time::{sleep, Duration};
     
     let url = "ws://127.0.0.1:5899";
     
     tokio::spawn(async move {
-        match connect_async(url).await {
-            Ok((ws_stream, _)) => {
-                let (mut write, mut read) = ws_stream.split();
-                
-                // Аутентификация
-                let auth_msg = json!({
-                    "type": "auth",
-                    "payload": {
-                        "identifier": "com.radj.ts6overlive",
-                        "version": "1.0.0",
-                        "name": "TS6 OverLive",
-                        "description": "Overlay widget for TeamSpeak 6",
-                        "content": { "apiKey": api_key },
-                        "autoApprove": true
+        let mut retry_delay = 3;
+        
+        loop {
+            match connect_async(url).await {
+                Ok((ws_stream, _)) => {
+                    retry_delay = 3;
+                    let (mut write, mut read) = ws_stream.split();
+                    
+                    let auth_msg = json!({
+                        "type": "auth",
+                        "payload": {
+                            "identifier": "com.radj.ts6overlive",
+                            "version": "1.0.0",
+                            "name": "TS6 OverLive",
+                            "description": "Overlay widget for TeamSpeak 6",
+                            "content": { "apiKey": api_key.clone() },
+                            "autoApprove": true
+                        }
+                    });
+                    
+                    let _ = write.send(Message::Text(auth_msg.to_string())).await;
+                    
+                    while let Some(msg) = read.next().await {
+                        if let Ok(Message::Text(text)) = msg {
+                            let _ = window.emit("ts6-message", text);
+                        }
                     }
-                });
-                
-                let _ = write.send(Message::Text(auth_msg.to_string())).await;
-                
-                // Читаем сообщения
-                while let Some(msg) = read.next().await {
-                    if let Ok(Message::Text(text)) = msg {
-                        let _ = window.emit("ts6-message", text);
-                    }
+                    
+                    let _ = window.emit("ts6-disconnected", "");
+                }
+                Err(_) => {
+                    let _ = window.emit("ts6-disconnected", "");
                 }
             }
-            Err(e) => {
-                eprintln!("Failed to connect to TS6: {}", e);
+            
+            sleep(Duration::from_secs(retry_delay)).await;
+            if retry_delay < 30 {
+                retry_delay *= 2;
             }
         }
     });

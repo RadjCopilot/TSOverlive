@@ -14,9 +14,9 @@ class App {
         this.ui.init();
         
         this.settings.onChange = () => this.ui.applySettings();
-        this.ts6.onUpdate = () => this.ui.renderUsers(this.ts6.clients, this.ts6.isConnected);
+        this.ts6.onUpdate = () => this.ui.renderUsers(this.ts6.clients, this.ts6.isConnected, this.ts6.isConnectedToServer);
         
-        this.ui.renderUsers([], false);
+        this.ui.renderUsers([], false, false);
         
         await this.ts6.connect();
         
