@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>TS6 OverLive</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/color-picker.css">
+</head>
+<body>
+    <div class="container">
+        <div class="overlay" id="overlay">
+            <div class="header">
+                <button class="settings-btn" onclick="toggleSettings()">⚙️</button>
+            </div>
+            <div class="user-list" id="userList"></div>
+        </div>
+        <div class="settings-panel" id="settingsPanel">
+            <button class="close-btn" onclick="toggleSettings()">✕</button>
+            <h2>Настройки</h2>
+            <div class="setting-group">
+                <label>
+                    <input type="checkbox" id="minimal">
+                    Минималистичный режим
+                </label>
+            </div>
+            <div class="setting-group">
+                <label>Прозрачность: <span id="opacityValue">80</span>%</label>
+                <input type="range" id="opacity" min="0" max="100" value="80">
+            </div>
+            <div class="setting-group">
+                <label>Макс. пользователей</label>
+                <select id="maxUsers">
+                    <option value="3">3</option>
+                    <option value="5">5</option>
+                    <option value="8">8</option>
+                    <option value="10" selected>10</option>
+                    <option value="15">15</option>
+                    <option value="999">Все</option>
+                </select>
+            </div>
+            <div class="setting-group">
+                <label>Цвет акцента</label>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="color" value="#10b981">
+                    <div class="color-picker-button" onclick="document.getElementById('color').click()">
+                        <div class="color-preview" id="colorPreview" style="background: #10b981;"></div>
+                        <span>Выбрать цвет</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/ts6-client.js"></script>
+    <script src="js/window-manager.js"></script>
+    <script src="js/settings.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

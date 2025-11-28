@@ -1,0 +1,32 @@
+stages:
+  - build
+
+build-macos:
+  stage: build
+  tags:
+    - macos
+  script:
+    - npm install
+    - npm run build:mac
+  artifacts:
+    paths:
+      - src-tauri/target/release/bundle/
+    expire_in: 1 week
+  only:
+    - tags
+    - main
+
+build-windows:
+  stage: build
+  tags:
+    - windows
+  script:
+    - npm install
+    - npm run build
+  artifacts:
+    paths:
+      - src-tauri/target/release/bundle/
+    expire_in: 1 week
+  only:
+    - tags
+    - main

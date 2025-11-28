@@ -1,0 +1,20 @@
+{
+  "name": "ts6-overlive",
+  "version": "1.0.0",
+  "description": "TS6 OverLive - Оверлей виджет для TeamSpeak 6 с отображением активных пользователей в канале",
+  "author": "Radj",
+  "license": "MIT",
+  "scripts": {
+    "dev": "PATH=$HOME/.cargo/bin:$PATH npx tauri dev",
+    "build": "PATH=$HOME/.cargo/bin:$PATH npx tauri build",
+    "build:mac": "PATH=$HOME/.cargo/bin:$PATH npx tauri build --target universal-apple-darwin",
+    "build:win": "PATH=$HOME/.cargo/bin:$PATH npx tauri build --target x86_64-pc-windows-msvc",
+    "tauri": "PATH=$HOME/.cargo/bin:$PATH npx tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^1.5.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^1.5.0"
+  }
+}
