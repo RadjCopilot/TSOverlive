@@ -4,6 +4,7 @@ class Settings {
         this.minimal = false;
         this.maxUsers = 10;
         this.color = '#10b981';
+        this.clickThrough = false;
         this.onChange = null;
     }
 
@@ -15,6 +16,7 @@ class Settings {
             this.minimal = data.minimal || false;
             this.maxUsers = data.maxUsers || 10;
             this.color = data.color || '#10b981';
+            this.clickThrough = data.clickThrough || false;
         }
     }
 
@@ -23,7 +25,8 @@ class Settings {
             opacity: this.opacity,
             minimal: this.minimal,
             maxUsers: this.maxUsers,
-            color: this.color
+            color: this.color,
+            clickThrough: this.clickThrough
         }));
         if (this.onChange) this.onChange();
     }
@@ -45,6 +48,11 @@ class Settings {
 
     setColor(value) {
         this.color = value;
+        this.save();
+    }
+
+    setClickThrough(value) {
+        this.clickThrough = value;
         this.save();
     }
 }

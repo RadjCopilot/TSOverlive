@@ -35,6 +35,14 @@ class UI {
             document.getElementById('colorPreview').style.background = color;
             this.settings.setColor(color);
         });
+
+        document.getElementById('clickThrough').addEventListener('change', async (e) => {
+            this.settings.setClickThrough(e.target.checked);
+            if (window.__TAURI__) {
+                const { invoke } = window.__TAURI__.tauri;
+                await invoke('update_click_through_menu', { enabled: e.target.checked });
+            }
+        });
     }
 
     _bindDragging() {
@@ -69,7 +77,20 @@ class UI {
     }
 
     toggleSettings() {
+        const isOpening = !this.settingsPanel.classList.contains('visible');
         this.settingsPanel.classList.toggle('visible');
+        
+        if (window.__TAURI__) {
+            const { appWindow } = window.__TAURI__.window;
+            if (isOpening) {
+                appWindow.setIgnoreCursorEvents(false);
+            } else {
+                setTimeout(() => {
+                    appWindow.setIgnoreCursorEvents(this.settings.clickThrough);
+                }, 100);
+            }
+        }
+        
         requestAnimationFrame(() => {
             requestAnimationFrame(() => this.resizeWindow());
         });
@@ -91,6 +112,12 @@ class UI {
         document.getElementById('maxUsers').value = this.settings.maxUsers;
         document.getElementById('color').value = color;
         document.getElementById('colorPreview').style.background = color;
+        document.getElementById('clickThrough').checked = this.settings.clickThrough;
+        
+        if (window.__TAURI__ && !this.settingsPanel.classList.contains('visible')) {
+            const { appWindow } = window.__TAURI__.window;
+            appWindow.setIgnoreCursorEvents(this.settings.clickThrough);
+        }
         
         setTimeout(() => this.resizeWindow(), 100);
     }

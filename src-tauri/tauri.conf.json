@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "TS6 OverLive",
-    "version": "1.0.0"
+    "version": "1.0.1"
   },
   "tauri": {
     "allowlist": {
@@ -30,7 +30,19 @@
         "create": true,
         "setPosition": true,
         "setSize": true,
-        "setFocus": true
+        "setFocus": true,
+        "setIgnoreCursorEvents": true
+      },
+      "globalShortcut": {
+        "all": true
+      },
+      "updater": {
+        "active": true,
+        "endpoints": [
+          "https://raw.githubusercontent.com/RadjCopilot/TS6Overlay/main/updater.json"
+        ],
+        "dialog": true,
+        "pubkey": "0Z8RPnjd7C8ezC4iiDKrLIsdSg99caAOyjB5pgtgPhY="
       }
     },
     "bundle": {
@@ -70,15 +82,15 @@
         "decorations": false,
         "transparent": true,
         "alwaysOnTop": true,
+        "hiddenTitle": true,
         "skipTaskbar": false,
-        "visible": false,
+        "visible": true,
         "url": "index.html"
       }
     ],
     "systemTray": {
-      "iconPath": "icons/32x32.png",
-      "iconAsTemplate": true,
-      "menuOnLeftClick": false
+      "iconPath": "icons/tray-icon.png",
+      "iconAsTemplate": true
     }
   }
 }

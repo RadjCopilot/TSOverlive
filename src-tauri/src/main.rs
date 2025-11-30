@@ -1,7 +1,20 @@
 // Prevents additional console window on Windows in release
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::{CustomMenuItem, SystemTray, SystemTrayMenu, SystemTrayEvent, Manager};
+use tauri::{CustomMenuItem, SystemTray, SystemTrayMenu, SystemTrayEvent, Manager, Menu, MenuItem, Submenu};
+
+#[tauri::command]
+fn update_click_through_menu(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    let title = if enabled { "✓ Сквозной режим" } else { "Сквозной режим" };
+    
+    if let Some(window) = app.get_window("main") {
+        let _ = window.menu_handle().get_item("click_through_menu").set_title(title);
+    }
+    
+    let _ = app.tray_handle().get_item("click_through").set_title(title);
+    
+    Ok(())
+}
 
 #[tauri::command]
 async fn connect_ts6(window: tauri::Window, api_key: String) -> Result<(), String> {
@@ -60,33 +73,58 @@ async fn connect_ts6(window: tauri::Window, api_key: String) -> Result<(), Strin
 
 fn main() {
     let show = CustomMenuItem::new("show".to_string(), "Показать");
+    let click_through = CustomMenuItem::new("click_through".to_string(), "Сквозной режим");
+    let devtools = CustomMenuItem::new("devtools".to_string(), "DevTools");
     let quit = CustomMenuItem::new("quit".to_string(), "Выход");
     
     let tray_menu = SystemTrayMenu::new()
         .add_item(show)
+        .add_item(click_through)
+        .add_item(devtools)
         .add_native_item(tauri::SystemTrayMenuItem::Separator)
         .add_item(quit);
     
     let system_tray = SystemTray::new().with_menu(tray_menu);
 
+    let menu = Menu::new()
+        .add_submenu(Submenu::new(
+            "Приложение",
+            Menu::new()
+                .add_item(CustomMenuItem::new("click_through_menu", "Сквозной режим"))
+                .add_native_item(MenuItem::Separator)
+                .add_native_item(MenuItem::Quit),
+        ));
+
     tauri::Builder::default()
+        .menu(menu)
+        .on_menu_event(|event| {
+            match event.menu_item_id() {
+                "click_through_menu" => {
+                    let window = event.window();
+                    let _ = window.emit("toggle-click-through", "");
+                }
+                _ => {}
+            }
+        })
         .system_tray(system_tray)
         .on_system_tray_event(|app, event| match event {
-            SystemTrayEvent::LeftClick { .. } => {
-                let window = app.get_window("main").unwrap();
-                if window.is_visible().unwrap() {
-                    window.hide().unwrap();
-                } else {
-                    window.show().unwrap();
-                    window.set_focus().unwrap();
-                }
-            }
             SystemTrayEvent::MenuItemClick { id, .. } => {
                 match id.as_str() {
                     "show" => {
                         let window = app.get_window("main").unwrap();
                         window.show().unwrap();
                         window.set_focus().unwrap();
+                    }
+                    "click_through" => {
+                        let window = app.get_window("main").unwrap();
+                        let _ = window.emit("toggle-click-through", "");
+                    }
+                    "devtools" => {
+                        #[cfg(debug_assertions)]
+                        {
+                            let window = app.get_window("main").unwrap();
+                            window.open_devtools();
+                        }
                     }
                     "quit" => {
                         std::process::exit(0);
@@ -96,7 +134,7 @@ fn main() {
             }
             _ => {}
         })
-        .invoke_handler(tauri::generate_handler![connect_ts6])
+        .invoke_handler(tauri::generate_handler![connect_ts6, update_click_through_menu])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
