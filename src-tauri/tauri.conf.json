@@ -38,12 +38,7 @@
       }
     },
     "updater": {
-      "active": true,
-      "endpoints": [
-        "https://raw.githubusercontent.com/RadjCopilot/TS6Overlay/main/updater.json"
-      ],
-      "dialog": true,
-      "pubkey": "lqO+Z5jbym0NdbTIrTNuR8V1nUHaGFdPg1CoYD8CgOc="
+      "active": false
     },
     "bundle": {
       "active": true,
