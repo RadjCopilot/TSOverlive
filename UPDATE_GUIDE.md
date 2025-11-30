@@ -19,13 +19,31 @@
 ]
 ```
 
-## Шаг 3: Создайте GitHub Token
+## Шаг 3: Создайте ключи для автообновлений
+
+Для безопасных автообновлений нужно создать пару ключей:
+
+```bash
+npm run tauri signer generate -- -w ~/.tauri/myapp.key
+```
+
+Это создаст:
+- Приватный ключ (сохраните в безопасном месте)
+- Публичный ключ (добавьте в `tauri.conf.json` в поле `updater.pubkey`)
+
+## Шаг 4: Настройте GitHub Secrets
+
+1. Перейдите в Settings → Secrets and variables → Actions вашего репозитория
+2. Добавьте секрет `TAURI_PRIVATE_KEY` с содержимым приватного ключа
+3. Если ключ защищен паролем, добавьте секрет `TAURI_KEY_PASSWORD`
+
+## Шаг 5: Создайте GitHub Token
 
 1. Перейдите в GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)
 2. Создайте новый token с правами `repo`
 3. Скопируйте token
 
-## Шаг 4: Настройте переменную окружения
+## Шаг 6: Настройте переменную окружения
 
 ### macOS/Linux:
 ```bash
@@ -37,7 +55,7 @@ export GH_TOKEN="ваш_github_token"
 set GH_TOKEN=ваш_github_token
 ```
 
-## Шаг 5: Соберите и опубликуйте релиз
+## Шаг 7: Соберите и опубликуйте релиз
 
 ```bash
 # Увеличьте версию в package.json (например, с 1.0.0 на 1.0.1)
@@ -52,7 +70,7 @@ npm run dist
 - Создаст GitHub Release
 - Загрузит установочные файлы
 
-## Шаг 6: Публикация для обеих платформ
+## Шаг 8: Публикация для обеих платформ
 
 ### Для macOS:
 ```bash
