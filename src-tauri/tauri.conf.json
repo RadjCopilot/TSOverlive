@@ -35,15 +35,15 @@
       },
       "globalShortcut": {
         "all": true
-      },
-      "updater": {
-        "active": true,
-        "endpoints": [
-          "https://raw.githubusercontent.com/RadjCopilot/TS6Overlay/main/updater.json"
-        ],
-        "dialog": true,
-        "pubkey": "0Z8RPnjd7C8ezC4iiDKrLIsdSg99caAOyjB5pgtgPhY="
       }
+    },
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://raw.githubusercontent.com/RadjCopilot/TS6Overlay/main/updater.json"
+      ],
+      "dialog": true,
+      "pubkey": "0Z8RPnjd7C8ezC4iiDKrLIsdSg99caAOyjB5pgtgPhY="
     },
     "bundle": {
       "active": true,
