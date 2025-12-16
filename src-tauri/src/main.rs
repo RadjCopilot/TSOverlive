@@ -7,8 +7,11 @@ use tauri::{CustomMenuItem, SystemTray, SystemTrayMenu, SystemTrayEvent, Manager
 fn update_click_through_menu(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
     let title = if enabled { "✓ Сквозной режим" } else { "Сквозной режим" };
     
-    if let Some(window) = app.get_window("main") {
-        let _ = window.menu_handle().get_item("click_through_menu").set_title(title);
+    #[cfg(target_os = "macos")]
+    {
+        if let Some(window) = app.get_window("main") {
+            let _ = window.menu_handle().get_item("click_through_menu").set_title(title);
+        }
     }
     
     let _ = app.tray_handle().get_item("click_through").set_title(title);
@@ -209,6 +212,7 @@ fn main() {
     
     let system_tray = SystemTray::new().with_menu(tray_menu);
 
+    #[cfg(target_os = "macos")]
     let menu = Menu::new()
         .add_submenu(Submenu::new(
             "Приложение",
@@ -218,17 +222,24 @@ fn main() {
                 .add_native_item(MenuItem::Quit),
         ));
 
-    tauri::Builder::default()
-        .menu(menu)
-        .on_menu_event(|event| {
-            match event.menu_item_id() {
-                "click_through_menu" => {
-                    let window = event.window();
-                    let _ = window.emit("toggle-click-through", "");
+    let mut builder = tauri::Builder::default();
+    
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder
+            .menu(menu)
+            .on_menu_event(|event| {
+                match event.menu_item_id() {
+                    "click_through_menu" => {
+                        let window = event.window();
+                        let _ = window.emit("toggle-click-through", "");
+                    }
+                    _ => {}
                 }
-                _ => {}
-            }
-        })
+            });
+    }
+    
+    builder
         .system_tray(system_tray)
         .on_system_tray_event(|app, event| match event {
             SystemTrayEvent::MenuItemClick { id, .. } => {
