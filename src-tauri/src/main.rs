@@ -16,6 +16,129 @@ fn update_click_through_menu(app: tauri::AppHandle, enabled: bool) -> Result<(),
     Ok(())
 }
 
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use tokio::net::TcpStream;
+
+struct Ts3Connection {
+    write_stream: Option<tokio::io::WriteHalf<TcpStream>>,
+}
+
+lazy_static::lazy_static! {
+    static ref TS3_CONN: Arc<Mutex<Ts3Connection>> = Arc::new(Mutex::new(Ts3Connection { write_stream: None }));
+}
+
+#[tauri::command]
+async fn connect_ts3(window: tauri::Window) -> Result<(), String> {
+    use tokio::io::{AsyncReadExt, split};
+    use tokio::time::{sleep, Duration, timeout};
+    
+    println!("[TS3] connect_ts3 called");
+    
+    tokio::spawn(async move {
+        loop {
+            println!("[TS3] Attempting to connect to 127.0.0.1:25639");
+            
+            let connect_result = timeout(
+                Duration::from_secs(2),
+                TcpStream::connect("127.0.0.1:25639")
+            ).await;
+            
+            match connect_result {
+                Ok(Ok(stream)) => {
+                    println!("[TS3] Connected successfully");
+                    
+                    let (mut read_half, write_half) = split(stream);
+                    
+                    {
+                        let mut conn = TS3_CONN.lock().await;
+                        conn.write_stream = Some(write_half);
+                    }
+                    
+                    let _ = window.emit("ts3-connected", "");
+                    
+                    let mut accumulated = String::new();
+                    let mut buffer = vec![0u8; 8192];
+                    
+                    loop {
+                        match read_half.read(&mut buffer).await {
+                            Ok(0) => {
+                                println!("[TS3] Connection closed by server");
+                                break;
+                            }
+                            Ok(n) => {
+                                if let Ok(text) = String::from_utf8(buffer[..n].to_vec()) {
+                                    accumulated.push_str(&text);
+                                    
+                                    while let Some(pos) = accumulated.find('\n') {
+                                        let line = accumulated[..pos].to_string();
+                                        accumulated = accumulated[pos + 1..].to_string();
+                                        
+                                        if !line.trim().is_empty() {
+                                            println!("[TS3] Line: {}", line.trim());
+                                            let _ = window.emit("ts3-message", line + "\n");
+                                        }
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                println!("[TS3] Read error: {}", e);
+                                break;
+                            }
+                        }
+                    }
+                    
+                    {
+                        let mut conn = TS3_CONN.lock().await;
+                        conn.write_stream = None;
+                    }
+                    
+                    println!("[TS3] Disconnected, reconnecting in 3 seconds");
+                    let _ = window.emit("ts3-disconnected", "");
+                    sleep(Duration::from_secs(3)).await;
+                }
+                Ok(Err(e)) => {
+                    println!("[TS3] Connection failed: {}", e);
+                    let _ = window.emit("ts3-disconnected", "");
+                    sleep(Duration::from_secs(3)).await;
+                }
+                Err(_) => {
+                    println!("[TS3] Connection timeout");
+                    let _ = window.emit("ts3-disconnected", "");
+                    sleep(Duration::from_secs(3)).await;
+                }
+            }
+        }
+    });
+    
+    Ok(())
+}
+
+#[tauri::command]
+async fn send_ts3_command(command: String) -> Result<(), String> {
+    use tokio::io::AsyncWriteExt;
+    
+    println!("[TS3] Sending command: {}", command);
+    
+    let mut conn = TS3_CONN.lock().await;
+    if let Some(ref mut stream) = conn.write_stream {
+        let cmd = format!("{}\r\n", command);
+        match stream.write_all(cmd.as_bytes()).await {
+            Ok(_) => {
+                match stream.flush().await {
+                    Ok(_) => println!("[TS3] Command sent and flushed"),
+                    Err(e) => println!("[TS3] Failed to flush: {}", e),
+                }
+            }
+            Err(e) => println!("[TS3] Failed to send command: {}", e),
+        }
+    } else {
+        println!("[TS3] No active connection");
+    }
+    
+    Ok(())
+}
+
 #[tauri::command]
 async fn connect_ts6(window: tauri::Window, api_key: String) -> Result<(), String> {
     use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
@@ -134,7 +257,7 @@ fn main() {
             }
             _ => {}
         })
-        .invoke_handler(tauri::generate_handler![connect_ts6, update_click_through_menu])
+        .invoke_handler(tauri::generate_handler![connect_ts6, connect_ts3, send_ts3_command, update_click_through_menu])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

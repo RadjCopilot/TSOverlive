@@ -1,6 +1,8 @@
 class App {
     constructor() {
         this.ts6 = new TS6Client();
+        this.ts3 = new TS3Client();
+        this.currentClient = null;
         this.windowManager = new WindowManager();
         this.settings = new Settings();
         this.ui = null;
@@ -14,12 +16,22 @@ class App {
         this.ui = new UI(this.settings, this.windowManager);
         this.ui.init();
         
-        this.settings.onChange = () => this.ui.applySettings();
-        this.ts6.onUpdate = () => this.ui.renderUsers(this.ts6.clients, this.ts6.isConnected, this.ts6.isConnectedToServer);
+        this.settings.onChange = () => {
+            this.ui.applySettings();
+            this.switchTeamSpeakVersion();
+        };
+        
+        const updateCallback = () => {
+            const client = this.currentClient;
+            this.ui.renderUsers(client.clients, client.isConnected, client.isConnectedToServer);
+        };
+        
+        this.ts6.onUpdate = updateCallback;
+        this.ts3.onUpdate = updateCallback;
         
         this.ui.renderUsers([], false, false);
         
-        await this.ts6.connect();
+        this.switchTeamSpeakVersion();
         
         await this.ui.resizeWindow();
         await this.windowManager.restorePosition();
@@ -45,6 +57,24 @@ class App {
             await invoke('update_click_through_menu', { enabled: this.settings.clickThrough });
             
             this.updater.startAutoCheck();
+        }
+    }
+
+    switchTeamSpeakVersion() {
+        const version = this.settings.tsVersion || 'ts6';
+        
+        if (this.currentClient) {
+            if (this.currentClient === this.ts3) {
+                this.ts3.disconnect();
+            }
+        }
+        
+        if (version === 'ts3') {
+            this.currentClient = this.ts3;
+            this.ts3.connect(this.settings.ts3ApiKey);
+        } else {
+            this.currentClient = this.ts6;
+            this.ts6.connect();
         }
     }
 }

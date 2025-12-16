@@ -77,10 +77,10 @@
         "decorations": false,
         "transparent": true,
         "alwaysOnTop": true,
-        "hiddenTitle": true,
         "skipTaskbar": false,
         "visible": true,
-        "url": "index.html"
+        "url": "index.html",
+        "titleBarStyle": "Overlay"
       }
     ],
     "systemTray": {

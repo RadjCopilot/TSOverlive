@@ -5,6 +5,8 @@ class Settings {
         this.maxUsers = 10;
         this.color = '#10b981';
         this.clickThrough = false;
+        this.tsVersion = 'ts6';
+        this.ts3ApiKey = '';
         this.onChange = null;
     }
 
@@ -17,6 +19,8 @@ class Settings {
             this.maxUsers = data.maxUsers || 10;
             this.color = data.color || '#10b981';
             this.clickThrough = data.clickThrough || false;
+            this.tsVersion = data.tsVersion || 'ts6';
+            this.ts3ApiKey = data.ts3ApiKey || '';
         }
     }
 
@@ -26,7 +30,9 @@ class Settings {
             minimal: this.minimal,
             maxUsers: this.maxUsers,
             color: this.color,
-            clickThrough: this.clickThrough
+            clickThrough: this.clickThrough,
+            tsVersion: this.tsVersion,
+            ts3ApiKey: this.ts3ApiKey
         }));
         if (this.onChange) this.onChange();
     }
@@ -53,6 +59,16 @@ class Settings {
 
     setClickThrough(value) {
         this.clickThrough = value;
+        this.save();
+    }
+
+    setTsVersion(value) {
+        this.tsVersion = value;
+        this.save();
+    }
+
+    setTs3ApiKey(value) {
+        this.ts3ApiKey = value;
         this.save();
     }
 }
