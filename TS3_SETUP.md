@@ -1,5 +1,11 @@
 # Настройка TeamSpeak 3 для работы с TS6 OverLive
 
+## ⚠️ ВАЖНО
+
+**СНАЧАЛА включите ClientQuery в TeamSpeak 3, ПОТОМ запускайте виджет!**
+
+Если запустить виджет с выбранным TS3 до включения ClientQuery, TeamSpeak 3 может закрыться.
+
 ## Включение ClientQuery API
 
 Для работы виджета с TeamSpeak 3 необходимо включить ClientQuery API.

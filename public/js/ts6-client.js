@@ -81,13 +81,22 @@ class TS6Client {
         
         const channelId = myClient.channelId;
         
-        this.clients = conn.clientInfos
-            .filter(c => c.channelId === channelId && c.id !== conn.clientId)
-            .map(c => ({
-                id: c.id,
-                name: c.properties?.nickname || 'Unknown',
-                isSpeaking: c.properties?.flagTalking || false
-            }));
+        this.clients = [
+            {
+                id: conn.clientId,
+                name: myClient.properties?.nickname || 'You',
+                isSpeaking: myClient.properties?.flagTalking || false,
+                isMe: true
+            },
+            ...conn.clientInfos
+                .filter(c => c.channelId === channelId && c.id !== conn.clientId)
+                .map(c => ({
+                    id: c.id,
+                    name: c.properties?.nickname || 'Unknown',
+                    isSpeaking: c.properties?.flagTalking || false,
+                    isMe: false
+                }))
+        ];
         
         this.currentChannel = { id: channelId };
         this.isConnectedToServer = true;
@@ -105,6 +114,14 @@ class TS6Client {
         
         if (msg.type === 'talkStatusChanged' && client) {
             client.isSpeaking = msg.payload?.status === 1;
+            
+            // Держим себя всегда первым
+            if (!client.isMe) {
+                const me = this.clients.find(c => c.isMe);
+                const others = this.clients.filter(c => !c.isMe);
+                this.clients = me ? [me, ...others] : others;
+            }
+            
             if (this.onUpdate) this.onUpdate();
         }
     }

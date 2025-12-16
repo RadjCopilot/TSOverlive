@@ -38,6 +38,34 @@
                 <input type="range" id="opacity" min="0" max="100" value="80">
             </div>
             <div class="setting-group">
+                <label>Версия TeamSpeak</label>
+                <select id="tsVersion">
+                    <option value="ts6" selected>TeamSpeak 6</option>
+                    <option value="ts3">TeamSpeak 3</option>
+                </select>
+                <div id="ts3Warning" style="display: none; font-size: 10px; color: #f59e0b; margin-top: 8px; padding: 8px; background: rgba(245, 158, 11, 0.1); border-radius: 4px; line-height: 1.4;">
+                    ⚠️ Включите ClientQuery в TS3:<br>
+                    Tools → Options → Addons → ClientQuery
+                </div>
+            </div>
+            <div class="setting-group" id="ts3TokenGroup" style="display: none;">
+                <label>API ключ TS3</label>
+                <div id="ts3TokenDisplay" style="display: none;">
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" id="ts3TokenMasked" readonly style="flex: 1; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: rgba(255,255,255,0.6); font-size: 12px;">
+                        <button id="ts3TokenEdit" style="padding: 8px 12px; background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; border-radius: 4px; cursor: pointer; font-size: 12px;">Изменить</button>
+                    </div>
+                </div>
+                <div id="ts3TokenInput" style="display: none;">
+                    <input type="text" id="ts3Token" placeholder="Введите API ключ" style="width: 100%; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: #fff; font-size: 12px; margin-bottom: 8px;">
+                    <button id="ts3TokenApply" style="width: 100%; padding: 8px; background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; border-radius: 4px; cursor: pointer; font-size: 12px;">Применить</button>
+                </div>
+                <div style="font-size: 10px; color: rgba(255,255,255,0.5); margin-top: 8px; line-height: 1.4;">
+                    Получите ключ в TS3: Tools → Options → Addons → ClientQuery → Settings
+                </div>
+            </div>
+
+            <div class="setting-group">
                 <label>Макс. пользователей</label>
                 <select id="maxUsers">
                     <option value="3">3</option>
@@ -62,6 +90,7 @@
     </div>
 
     <script src="js/ts6-client.js"></script>
+    <script src="js/ts3-client.js"></script>
     <script src="js/window-manager.js"></script>
     <script src="js/settings.js"></script>
     <script src="js/ui.js"></script>

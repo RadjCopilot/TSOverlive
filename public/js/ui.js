@@ -43,6 +43,49 @@ class UI {
                 await invoke('update_click_through_menu', { enabled: e.target.checked });
             }
         });
+
+        document.getElementById('tsVersion').addEventListener('change', (e) => {
+            this.settings.setTsVersion(e.target.value);
+            this._updateVersionUI();
+        });
+
+        document.getElementById('ts3TokenEdit').addEventListener('click', () => {
+            document.getElementById('ts3TokenDisplay').style.display = 'none';
+            document.getElementById('ts3TokenInput').style.display = 'block';
+            document.getElementById('ts3Token').value = this.settings.ts3ApiKey;
+            document.getElementById('ts3Token').focus();
+        });
+
+        document.getElementById('ts3TokenApply').addEventListener('click', () => {
+            const token = document.getElementById('ts3Token').value.trim();
+            this.settings.setTs3ApiKey(token);
+            this._updateVersionUI();
+        });
+    }
+
+    _updateVersionUI() {
+        const ts3Warning = document.getElementById('ts3Warning');
+        const ts3TokenGroup = document.getElementById('ts3TokenGroup');
+        const ts3TokenDisplay = document.getElementById('ts3TokenDisplay');
+        const ts3TokenInput = document.getElementById('ts3TokenInput');
+        
+        if (this.settings.tsVersion === 'ts3') {
+            ts3Warning.style.display = 'block';
+            ts3TokenGroup.style.display = 'block';
+            
+            if (this.settings.ts3ApiKey) {
+                const masked = this.settings.ts3ApiKey.substring(0, 8) + '...' + this.settings.ts3ApiKey.substring(this.settings.ts3ApiKey.length - 4);
+                document.getElementById('ts3TokenMasked').value = masked;
+                ts3TokenDisplay.style.display = 'block';
+                ts3TokenInput.style.display = 'none';
+            } else {
+                ts3TokenDisplay.style.display = 'none';
+                ts3TokenInput.style.display = 'block';
+            }
+        } else {
+            ts3Warning.style.display = 'none';
+            ts3TokenGroup.style.display = 'none';
+        }
     }
 
     _bindDragging() {
@@ -113,6 +156,8 @@ class UI {
         document.getElementById('color').value = color;
         document.getElementById('colorPreview').style.background = color;
         document.getElementById('clickThrough').checked = this.settings.clickThrough;
+        document.getElementById('tsVersion').value = this.settings.tsVersion;
+        this._updateVersionUI();
         
         if (window.__TAURI__ && !this.settingsPanel.classList.contains('visible')) {
             const { appWindow } = window.__TAURI__.window;
@@ -137,8 +182,9 @@ class UI {
     }
 
     renderUsers(clients, isConnected, isConnectedToServer) {
+        const tsName = this.settings.tsVersion === 'ts3' ? 'TS3' : 'TS6';
         if (!isConnected) {
-            this.userList.innerHTML = '<div style="color: rgba(255,255,255,0.6); text-align: center; padding: 20px; font-size: 12px;">Не подключено к TS6</div>';
+            this.userList.innerHTML = `<div style="color: rgba(255,255,255,0.6); text-align: center; padding: 20px; font-size: 12px;">Не подключено к ${tsName}</div>`;
             return;
         }
         
@@ -152,13 +198,21 @@ class UI {
             return;
         }
         
-        const sorted = clients.sort((a, b) => (b.isSpeaking ? 1 : 0) - (a.isSpeaking ? 1 : 0));
+        // Разделяем на себя и остальных
+        const me = clients.filter(c => c.isMe);
+        const others = clients.filter(c => !c.isMe);
+        
+        // Сортируем остальных по говорению
+        const sortedOthers = others.sort((a, b) => (b.isSpeaking ? 1 : 0) - (a.isSpeaking ? 1 : 0));
+        
+        // Себя всегда первым, потом остальные
+        const sorted = [...me, ...sortedOthers];
         const limited = sorted.slice(0, this.settings.maxUsers);
         
         this.userList.innerHTML = limited.map(user => `
             <div class="user-item ${user.isSpeaking ? 'speaking' : ''}">
                 <div class="user-indicator"></div>
-                <span class="user-name">${user.name}</span>
+                <span class="user-name">${user.name}${user.isMe ? ' (вы)' : ''}</span>
             </div>
         `).join('');
     }
