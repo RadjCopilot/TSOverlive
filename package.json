@@ -1,7 +1,7 @@
 {
-  "name": "ts6-overlive",
-  "version": "1.0.1",
-  "description": "TS6 OverLive - Оверлей виджет для TeamSpeak 6 с отображением активных пользователей в канале",
+  "name": "teamspeak-overlive",
+  "version": "1.1.0",
+  "description": "TeamSpeak OverLive - Оверлей виджет для TeamSpeak 6 и 3 с отображением активных пользователей в канале",
   "author": "Radj",
   "license": "MIT",
   "scripts": {

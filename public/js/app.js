@@ -16,14 +16,16 @@ class App {
         this.ui = new UI(this.settings, this.windowManager);
         this.ui.init();
         
-        this.settings.onChange = () => {
+        this.settings.onChange = (reconnect) => {
             this.ui.applySettings();
-            this.switchTeamSpeakVersion();
+            if (reconnect) {
+                this.switchTeamSpeakVersion();
+            }
         };
         
         const updateCallback = () => {
             const client = this.currentClient;
-            this.ui.renderUsers(client.clients, client.isConnected, client.isConnectedToServer);
+            this.ui.renderUsers(client.clients, client.isConnected, client.isConnectedToServer, client.channelName || '');
         };
         
         this.ts6.onUpdate = updateCallback;
@@ -52,7 +54,12 @@ class App {
             };
             
             await listen('toggle-click-through', toggleClickThrough);
-            await register('CommandOrControl+Shift+T', toggleClickThrough);
+            
+            try {
+                await register('CommandOrControl+Shift+T', toggleClickThrough);
+            } catch (e) {
+                console.log('[App] Hotkey already registered');
+            }
             
             await invoke('update_click_through_menu', { enabled: this.settings.clickThrough });
             
@@ -77,9 +84,17 @@ class App {
             this.ts6.connect();
         }
     }
+
+    async toggleMute() {
+        if (this.currentClient) {
+            await this.currentClient.toggleMute();
+        }
+    }
 }
 
 window.toggleSettings = () => app.ui.toggleSettings();
+window.app = null;
 
 const app = new App();
+window.app = app;
 window.addEventListener('DOMContentLoaded', () => app.init());

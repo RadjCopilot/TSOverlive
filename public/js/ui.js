@@ -28,6 +28,10 @@ class UI {
 
         document.getElementById('maxUsers').addEventListener('change', (e) => {
             this.settings.setMaxUsers(parseInt(e.target.value));
+            const client = window.app.currentClient;
+            if (client) {
+                this.renderUsers(client.clients, client.isConnected, client.isConnectedToServer, client.channelName || '');
+            }
         });
 
         document.getElementById('color').addEventListener('input', (e) => {
@@ -114,8 +118,10 @@ class UI {
     }
 
     _observeChanges() {
+        let resizeTimeout = null;
         new MutationObserver(() => {
-            setTimeout(() => this.resizeWindow(), 50);
+            if (resizeTimeout) clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => this.resizeWindow(), 100);
         }).observe(this.userList, { childList: true, subtree: true });
     }
 
@@ -181,39 +187,53 @@ class UI {
         await this.windowManager.resize(width, height);
     }
 
-    renderUsers(clients, isConnected, isConnectedToServer) {
+    renderUsers(clients, isConnected, isConnectedToServer, channelName = '') {
         const tsName = this.settings.tsVersion === 'ts3' ? 'TS3' : 'TS6';
+        
+        let newHtml = '';
+        
         if (!isConnected) {
-            this.userList.innerHTML = `<div style="color: rgba(255,255,255,0.6); text-align: center; padding: 20px; font-size: 12px;">Не подключено к ${tsName}</div>`;
-            return;
+            newHtml = `<div style="color: rgba(255,255,255,0.6); text-align: center; padding: 20px; font-size: 12px;">Не подключено к ${tsName}</div>`;
+        } else if (!isConnectedToServer) {
+            newHtml = '<div style="color: rgba(255,255,255,0.6); text-align: center; padding: 20px; font-size: 12px;">Нет подключения к серверу</div>';
+        } else if (clients.length === 0) {
+            newHtml = '<div style="color: rgba(255,255,255,0.6); text-align: center; padding: 20px; font-size: 12px;">Нет пользователей в канале</div>';
+        } else {
+            const sorted = UserListService.sortAndLimit(clients, this.settings.maxUsers);
+            const owner = UserListService.getOwner(sorted);
+            const others = UserListService.getOthers(sorted);
+            
+            if (channelName) {
+                newHtml += `<div class="channel-name">${channelName}</div>`;
+            }
+            
+            if (owner) {
+                newHtml += this._renderUser(owner);
+                if (others.length > 0) {
+                    newHtml += '<div class="user-separator"></div>';
+                }
+            }
+            
+            newHtml += others.map(user => this._renderUser(user)).join('');
         }
         
-        if (!isConnectedToServer) {
-            this.userList.innerHTML = '<div style="color: rgba(255,255,255,0.6); text-align: center; padding: 20px; font-size: 12px;">Нет подключения к серверу</div>';
-            return;
+        if (this.userList.innerHTML !== newHtml) {
+            this.userList.innerHTML = newHtml;
         }
-        
-        if (clients.length === 0) {
-            this.userList.innerHTML = '<div style="color: rgba(255,255,255,0.6); text-align: center; padding: 20px; font-size: 12px;">Нет пользователей в канале</div>';
-            return;
-        }
-        
-        // Разделяем на себя и остальных
-        const me = clients.filter(c => c.isMe);
-        const others = clients.filter(c => !c.isMe);
-        
-        // Сортируем остальных по говорению
-        const sortedOthers = others.sort((a, b) => (b.isSpeaking ? 1 : 0) - (a.isSpeaking ? 1 : 0));
-        
-        // Себя всегда первым, потом остальные
-        const sorted = [...me, ...sortedOthers];
-        const limited = sorted.slice(0, this.settings.maxUsers);
-        
-        this.userList.innerHTML = limited.map(user => `
+    }
+
+    _renderUser(user) {
+        const muteIcon = user.inputMuted 
+            ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>'
+            : '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V21h2v-3.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/></svg>';
+        const muteClass = user.inputMuted ? 'muted' : '';
+        const muteBtn = user.isMe ? `<button class="mute-btn ${muteClass}" onclick="app.toggleMute()" title="${user.inputMuted ? 'Включить микрофон' : 'Выключить микрофон'}">${muteIcon}</button>` : '';
+        return `
             <div class="user-item ${user.isSpeaking ? 'speaking' : ''}">
                 <div class="user-indicator"></div>
-                <span class="user-name">${user.name}${user.isMe ? ' (вы)' : ''}</span>
+                <div class="user-name">${user.name}</div>
+                ${muteBtn}
             </div>
-        `).join('');
+        `;
     }
 }

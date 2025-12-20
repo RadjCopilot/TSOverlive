@@ -1,15 +1,15 @@
 {
-  "version": "1.0.1",
-  "notes": "Исправления:\n- Иконка в трее теперь всегда видна\n- Виджет не прячется автоматически в угол\n- Клик по иконке трея не скрывает виджет\n- Улучшена стабильность работы",
-  "pub_date": "2025-11-30T16:00:00Z",
+  "version": "1.1.0",
+  "notes": "Обновление v1.1.0: Кнопка мута микрофона, умная сортировка пользователей, улучшенная стабильность",
+  "pub_date": "2025-01-15T00:00:00Z",
   "platforms": {
     "darwin-universal": {
-      "signature": "ЗАПОЛНИТЬ_ПОСЛЕ_СБОРКИ",
-      "url": "https://github.com/RadjCopilot/TS6Overlay/releases/download/v1.0.1/TS6.OverLive.app.tar.gz"
+      "signature": "",
+      "url": "https://github.com/YOUR_USERNAME/TS6Overlay/releases/download/v1.1.0/TeamSpeak.OverLive_1.1.0_universal.dmg.tar.gz"
     },
     "windows-x86_64": {
-      "signature": "ЗАПОЛНИТЬ_ПОСЛЕ_СБОРКИ",
-      "url": "https://github.com/RadjCopilot/TS6Overlay/releases/download/v1.0.1/TS6.OverLive_1.0.1_x64_en-US.msi"
+      "signature": "",
+      "url": "https://github.com/YOUR_USERNAME/TS6Overlay/releases/download/v1.1.0/TeamSpeak.OverLive_1.1.0_x64_en-US.msi.zip"
     }
   }
 }

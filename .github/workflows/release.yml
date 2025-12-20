@@ -44,10 +44,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ""
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'TS6 OverLive ${{ github.ref_name }}'
-          releaseBody: 'См. CHANGELOG.md для списка изменений'
+          releaseName: 'TeamSpeak OverLive ${{ github.ref_name }}'
+          releaseBody: 'См. RELEASE_NOTES_${{ github.ref_name }}.md для списка изменений'
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin' || '' }}
+          includeUpdaterJson: true

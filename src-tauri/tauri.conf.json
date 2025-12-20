@@ -7,8 +7,8 @@
     "withGlobalTauri": true
   },
   "package": {
-    "productName": "TS6 OverLive",
-    "version": "1.0.1"
+    "productName": "TeamSpeak OverLive",
+    "version": "1.1.0"
   },
   "tauri": {
     "allowlist": {
@@ -38,12 +38,17 @@
       }
     },
     "updater": {
-      "active": false
+      "active": true,
+      "endpoints": [
+        "https://github.com/YOUR_USERNAME/TS6Overlay/releases/latest/download/latest.json"
+      ],
+      "dialog": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEEyNDE5NUVFRjc2QjUwRjAKUldUd1VHdjM3cFZCb3BlakM5bTErSXgzSmFheW44blhTQnorWjhTWjg0aVFkMitXUDl2K3VLUGMK"
     },
     "bundle": {
       "active": true,
       "targets": "all",
-      "identifier": "com.radj.ts6overlive",
+      "identifier": "com.radj.teamspeak-overlive",
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",
@@ -55,8 +60,8 @@
       "externalBin": [],
       "copyright": "Copyright © 2025 Radj",
       "category": "Utility",
-      "shortDescription": "TS6 OverLive",
-      "longDescription": "Оверлей виджет для TeamSpeak 6 с отображением активных пользователей в канале",
+      "shortDescription": "TeamSpeak OverLive",
+      "longDescription": "Оверлей виджет для TeamSpeak 6 и 3 с отображением активных пользователей в канале",
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
@@ -71,7 +76,7 @@
       {
         "fullscreen": false,
         "resizable": false,
-        "title": "TS6 OverLive",
+        "title": "TeamSpeak OverLive",
         "width": 280,
         "height": 280,
         "decorations": false,

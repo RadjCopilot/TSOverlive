@@ -1,15 +1,16 @@
 class TS3Client {
     constructor() {
         this.clients = [];
-        this.currentChannel = null;
+        this.currentChannelId = null;
+        this.channelName = '';
         this.isConnected = false;
         this.isConnectedToServer = false;
         this.onUpdate = null;
-        this.socket = null;
-        this.reconnectTimer = null;
         this.myClientId = null;
         this.apiKey = '';
         this.listenersRegistered = false;
+        this.channels = {};
+        this._clientListPending = false;
     }
 
     async connect(apiKey = '') {
@@ -57,7 +58,7 @@ class TS3Client {
                 this.isConnectedToServer = false;
                 this.clients = [];
                 this.myClientId = null;
-                this.currentChannel = null;
+                this.currentChannelId = null;
                 if (this.onUpdate) this.onUpdate();
             });
             
@@ -77,187 +78,244 @@ class TS3Client {
 
     _handleMessage(data) {
         console.log('[TS3] Raw:', data);
-        const lines = data.trim().split('\n');
+        data.trim().split('\n').forEach(line => this._processLine(line));
+    }
+
+    _processLine(line) {
+        if (line.includes('error id=1796') || line.includes('error id=1794')) {
+            console.log('[TS3] Not connected to server (error 1796/1794)');
+            this.isConnectedToServer = false;
+            this.clients = [];
+            this.myClientId = null;
+            this.currentChannelId = null;
+            this.channelName = '';
+            if (this.onUpdate) this.onUpdate();
+            return;
+        }
         
-        for (const line of lines) {
-            if (line.includes('error id=1796') || line.includes('error id=1794')) {
-                console.log('[TS3] Not connected to server (error 1796/1794)');
-                this.isConnectedToServer = false;
-                this.clients = [];
-                this.myClientId = null;
-                this.currentChannel = null;
-                if (this.onUpdate) this.onUpdate();
-            } else if (line.includes('error id=0')) {
-                console.log('[TS3] Command OK');
-            } else if (line.startsWith('notifyconnectstatuschange')) {
-                this._handleConnectStatus(line);
-            } else if (line.startsWith('notifycliententerview')) {
-                this._handleClientEnter(line);
-            } else if (line.startsWith('notifyclientleftview')) {
-                this._handleClientLeft(line);
-            } else if (line.startsWith('notifytalkstatuschange')) {
-                this._handleTalkStatus(line);
-            } else if (line.startsWith('notifyclientmoved')) {
-                this._handleClientMoved(line);
-            } else if (line.includes('clid=') && line.includes('client_nickname=')) {
-                this._handleClientList(line);
-            } else if (line.includes('clid=') && line.includes('cid=') && !line.includes('client_nickname=')) {
-                this._handleWhoAmI(line);
-            }
+        if (line.includes('error id=0')) return;
+        
+        if (line.startsWith('notifyconnectstatuschange')) {
+            console.log('[TS3] Processing connectstatuschange');
+            return this._handleConnectStatus(line);
+        }
+        if (line.startsWith('notifycliententerview')) {
+            console.log('[TS3] Processing cliententerview');
+            return this._handleClientEnter(line);
+        }
+        if (line.startsWith('notifyclientleftview')) {
+            console.log('[TS3] Processing clientleftview');
+            return this._handleClientLeft(line);
+        }
+        if (line.startsWith('notifytalkstatuschange')) return this._handleTalkStatus(line);
+        if (line.startsWith('notifyclientmoved')) {
+            console.log('[TS3] Processing clientmoved');
+            return this._handleClientMoved(line);
+        }
+        if (line.startsWith('notifyclientupdated')) {
+            console.log('[TS3] Processing clientupdated');
+            return this._handleClientUpdated(line);
+        }
+        if (line.startsWith('notify')) return;
+        if (line.includes('clid=') && line.includes('client_nickname=')) {
+            console.log('[TS3] Processing clientlist');
+            return this._handleClientList(line);
+        }
+        if (line.includes('cid=') && line.includes('channel_name=')) {
+            console.log('[TS3] Processing channellist');
+            return this._handleChannelList(line);
+        }
+        if (line.includes('clid=') && line.includes('cid=') && !line.includes('client_nickname=')) {
+            console.log('[TS3] Processing whoami');
+            return this._handleWhoAmI(line);
         }
     }
 
-    _parseParams(line) {
-        const params = {};
-        const parts = line.split(' ');
-        for (const part of parts) {
-            const [key, value] = part.split('=');
-            if (key && value) {
-                params[key] = decodeURIComponent(value.replace(/\\s/g, ' '));
-            }
-        }
-        return params;
-    }
+
 
     _handleConnectStatus(line) {
-        const params = this._parseParams(line);
-        const status = params.status;
+        const isConnected = TS3Parser.parseConnectStatus(line);
+        console.log('[TS3] Connect status:', isConnected);
         
-        console.log('[TS3] Connect status:', status);
-        
-        if (status === 'disconnected' || status === '0') {
+        if (!isConnected) {
             console.log('[TS3] Disconnected from server');
             this.isConnectedToServer = false;
             this.clients = [];
             this.myClientId = null;
-            this.currentChannel = null;
+            this.currentChannelId = null;
             if (this.onUpdate) this.onUpdate();
-        } else if (status === 'connected' || status === '1') {
-            console.log('[TS3] Connected to server');
-            this.isConnectedToServer = true;
-            // Запрашиваем информацию о себе
-            setTimeout(() => {
-                this._sendCommand('whoami');
-                this._sendCommand('clientlist');
-            }, 500);
+            return;
         }
+        
+        console.log('[TS3] Connected to server');
+        this.isConnectedToServer = true;
+        setTimeout(() => this._sendCommand('whoami'), 300);
     }
 
     _handleWhoAmI(line) {
-        const params = this._parseParams(line);
-        this.myClientId = parseInt(params.clid);
-        this.currentChannel = { id: parseInt(params.cid) };
+        const data = TS3Parser.parseWhoAmI(line);
+        this.myClientId = data.clientId;
+        this.currentChannelId = data.channelId;
         this.isConnectedToServer = true;
-        console.log('[TS3] WhoAmI:', { myClientId: this.myClientId, channelId: this.currentChannel.id });
+        console.log('[TS3] WhoAmI: myClientId=', this.myClientId, 'channelId=', this.currentChannelId);
+        console.log('[TS3] Setting myClientId to', this.myClientId, '- this is ME');
+        
+        setTimeout(() => {
+            this._sendCommand('channellist');
+        }, 200);
+    }
+
+    _handleChannelList(line) {
+        const channels = line.split('|');
+        for (const channelData of channels) {
+            const params = TS3Parser.parseParams(channelData);
+            const cid = parseInt(params.cid);
+            if (cid) {
+                this.channels[cid] = params.channel_name || 'Unknown';
+            }
+        }
+        console.log('[TS3] Channels loaded:', Object.keys(this.channels).length);
+        
+        if (this.currentChannelId && this.channels[this.currentChannelId]) {
+            this.channelName = this.channels[this.currentChannelId];
+            console.log('[TS3] Current channel name:', this.channelName);
+        }
+        
+        setTimeout(() => {
+            this._sendCommand('clientlist');
+        }, 200);
     }
 
     _handleClientList(line) {
-        if (!this.currentChannel || !this.myClientId) {
+        if (!this.currentChannelId || !this.myClientId) {
             console.log('[TS3] ClientList skipped - no channel or clientId');
             return;
         }
 
-        const clients = line.split('|');
-        const me = [];
-        const others = [];
-
-        for (const clientData of clients) {
-            const params = this._parseParams(clientData);
-            const clientId = parseInt(params.clid);
-            const channelId = parseInt(params.cid);
-
-            if (channelId === this.currentChannel.id) {
-                const client = {
-                    id: clientId,
-                    name: params.client_nickname || 'Unknown',
-                    isSpeaking: params.client_flag_talking === '1',
-                    isMe: clientId === this.myClientId
-                };
-                
-                if (client.isMe) {
-                    me.push(client);
-                } else {
-                    others.push(client);
-                }
-            }
+        console.log('[TS3] Parsing clientlist with myClientId=', this.myClientId);
+        this.clients = TS3Parser.parseClientList(line, this.currentChannelId, this.myClientId);
+        console.log('[TS3] ClientList: found', this.clients.length, 'clients in channel', this.currentChannelId);
+        console.log('[TS3] Clients:', this.clients.map(c => `${c.name} (id=${c.id}, isMe=${c.isMe})`).join(', '));
+        
+        const owner = this.clients.find(c => c.isMe);
+        if (owner) {
+            console.log('[TS3] Owner found:', owner.name, 'id=', owner.id);
+        } else {
+            console.log('[TS3] WARNING: No owner found! myClientId=', this.myClientId);
         }
-
-        this.clients = [...me, ...others];
-        console.log('[TS3] ClientList:', this.clients.length, 'clients in channel');
+        
+        if (this.currentChannelId && this.channels[this.currentChannelId]) {
+            this.channelName = this.channels[this.currentChannelId];
+            console.log('[TS3] Updated channel name:', this.channelName);
+        }
+        
         if (this.onUpdate) this.onUpdate();
     }
 
     _handleClientEnter(line) {
-        const params = this._parseParams(line);
-        const clientId = parseInt(params.clid);
-        const channelId = parseInt(params.ctid);
+        const data = TS3Parser.parseClientEnter(line);
+        if (data.channelId !== this.currentChannelId) return;
 
-        if (channelId === this.currentChannel?.id) {
-            // Проверяем что клиента еще нет в списке
-            if (!this.clients.find(c => c.id === clientId)) {
-                this.clients.push({
-                    id: clientId,
-                    name: params.client_nickname || 'Unknown',
-                    isSpeaking: false,
-                    isMe: clientId === this.myClientId
-                });
-                console.log('[TS3] Client entered:', params.client_nickname);
-                if (this.onUpdate) this.onUpdate();
-            }
-        }
+        const added = UserListService.addClient(this.clients, {
+            id: data.clientId,
+            name: data.nickname,
+            isSpeaking: false,
+            isMe: data.clientId === this.myClientId
+        });
+        
+        if (!added) return;
+        
+        console.log('[TS3] Client entered:', data.nickname, 'isMe:', data.clientId === this.myClientId);
+        if (this.onUpdate) this.onUpdate();
     }
 
     _handleClientLeft(line) {
-        const params = this._parseParams(line);
-        const clientId = parseInt(params.clid);
+        const data = TS3Parser.parseClientLeft(line);
+        const removed = UserListService.removeClient(this.clients, data.clientId);
+        if (!removed) return;
+        
+        console.log('[TS3] Client left:', data.clientId);
+        if (this.onUpdate) this.onUpdate();
+    }
 
-        const index = this.clients.findIndex(c => c.id === clientId);
-        if (index !== -1) {
-            this.clients.splice(index, 1);
+    _handleTalkStatus(line) {
+        const data = TS3Parser.parseTalkStatus(line);
+        const changed = UserListService.updateTalkStatus(this.clients, data.clientId, data.isSpeaking);
+        if (!changed) return;
+        
+        const client = this.clients.find(c => c.id === data.clientId);
+        console.log('[TS3] Talk status changed:', client?.name, data.isSpeaking);
+        if (this.onUpdate) this.onUpdate();
+    }
+
+    _handleClientMoved(line) {
+        const data = TS3Parser.parseClientMoved(line);
+
+        if (data.clientId === this.myClientId) {
+            console.log('[TS3] I moved to channel:', data.newChannelId);
+            this.currentChannelId = data.newChannelId;
+            this.channelName = this.channels[data.newChannelId] || '';
+            this.clients = [];
+            if (!this._clientListPending) {
+                this._clientListPending = true;
+                setTimeout(() => {
+                    this._clientListPending = false;
+                    this._sendCommand('clientlist');
+                }, 200);
+            }
+            return;
+        }
+        
+        const clientExists = this.clients.find(c => c.id === data.clientId);
+        
+        if (data.newChannelId === this.currentChannelId && !clientExists) {
+            console.log('[TS3] Client', data.clientId, 'moved to my channel, adding via clientlist');
+            if (!this._clientListPending) {
+                this._clientListPending = true;
+                setTimeout(() => {
+                    this._clientListPending = false;
+                    this._sendCommand('clientlist');
+                }, 200);
+            }
+            return;
+        }
+        
+        if (data.newChannelId !== this.currentChannelId && clientExists) {
+            console.log('[TS3] Client', data.clientId, 'left my channel');
+            UserListService.removeClient(this.clients, data.clientId);
             if (this.onUpdate) this.onUpdate();
         }
     }
 
-    _handleTalkStatus(line) {
-        const params = this._parseParams(line);
-        const clientId = parseInt(params.clid);
-        const status = parseInt(params.status);
-
-        const client = this.clients.find(c => c.id === clientId);
-        if (client) {
-            const wasSpeaking = client.isSpeaking;
-            client.isSpeaking = status === 1;
-            if (wasSpeaking !== client.isSpeaking) {
-                console.log('[TS3] Talk status changed:', client.name, client.isSpeaking);
-                if (this.onUpdate) this.onUpdate();
-            }
+    _handleClientUpdated(line) {
+        const data = TS3Parser.parseClientUpdated(line);
+        const client = this.clients.find(c => c.id === data.clientId);
+        if (!client) return;
+        
+        let updated = false;
+        if (data.nickname) {
+            client.name = data.nickname;
+            console.log('[TS3] Client nickname updated:', data.nickname);
+            updated = true;
         }
-    }
-
-    _handleClientMoved(line) {
-        const params = this._parseParams(line);
-        const clientId = parseInt(params.clid);
-        const newChannelId = parseInt(params.ctid);
-
-        if (clientId === this.myClientId) {
-            console.log('[TS3] I moved to channel:', newChannelId);
-            this.currentChannel = { id: newChannelId };
-            this.clients = []; // Очищаем список
-            this._sendCommand('clientlist');
-        } else {
-            const index = this.clients.findIndex(c => c.id === clientId);
-            if (newChannelId === this.currentChannel?.id && index === -1) {
-                console.log('[TS3] Client moved to my channel, refreshing list');
-                this._sendCommand('clientlist');
-            } else if (newChannelId !== this.currentChannel?.id && index !== -1) {
-                console.log('[TS3] Client left my channel');
-                this.clients.splice(index, 1);
-                if (this.onUpdate) this.onUpdate();
-            }
+        if (data.inputMuted !== undefined) {
+            client.inputMuted = data.inputMuted;
+            console.log('[TS3] Client mute status updated:', data.inputMuted);
+            updated = true;
         }
+        if (updated && this.onUpdate) this.onUpdate();
     }
 
     disconnect() {
         // TS3 connection handled by backend
+    }
+
+    async toggleMute() {
+        if (!this.myClientId) return;
+        const client = this.clients.find(c => c.id === this.myClientId);
+        if (!client) return;
+        const newState = client.inputMuted ? 0 : 1;
+        await this._sendCommand(`clientupdate client_input_muted=${newState}`);
+        client.inputMuted = !client.inputMuted;
     }
 }
