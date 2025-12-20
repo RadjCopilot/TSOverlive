@@ -1,10 +1,10 @@
 [package]
-name = "ts6-overlay"
-version = "1.0.0"
-description = "Оверлей виджет для TeamSpeak 6"
+name = "teamspeak-overlive"
+version = "1.1.0"
+description = "Оверлей виджет для TeamSpeak 6 и 3"
 authors = ["Radj"]
 license = "MIT"
-repository = ""
+repository = "https://github.com/RadjCopilot/TSOverlive"
 edition = "2021"
 
 [build-dependencies]
