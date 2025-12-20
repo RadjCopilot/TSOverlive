@@ -145,46 +145,16 @@ html, body {
     min-width: 0;
 }
 
-.mute-btn {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: #fff;
-    padding: 3px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s;
-    margin-left: 8px;
-    opacity: 0.7;
-    line-height: 0;
+.status-icons {
     display: flex;
+    gap: 4px;
     align-items: center;
-    justify-content: center;
+    margin-left: 8px;
     flex-shrink: 0;
-    width: 18px;
-    height: 18px;
 }
 
-.mute-btn svg {
+.status-icons svg {
     display: block;
-}
-
-.mute-btn:hover {
-    background: color-mix(in srgb, var(--accent-color) 30%, transparent);
-    border-color: color-mix(in srgb, var(--accent-color) 50%, transparent);
-    opacity: 1;
-    transform: scale(1.1);
-}
-
-.mute-btn.muted {
-    background: rgba(239, 68, 68, 0.2);
-    border-color: rgba(239, 68, 68, 0.5);
-    color: #ef4444;
-    opacity: 1;
-}
-
-.mute-btn.muted:hover {
-    background: rgba(239, 68, 68, 0.3);
-    border-color: rgba(239, 68, 68, 0.7);
 }
 
 .overlay.minimal .user-name {
@@ -209,7 +179,8 @@ html, body {
     font-weight: 600;
     letter-spacing: 0.5px;
     text-transform: uppercase;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
+    padding: 0 2px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

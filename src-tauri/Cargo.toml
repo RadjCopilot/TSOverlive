@@ -11,7 +11,7 @@ edition = "2021"
 tauri-build = { version = "1.5", features = [] }
 
 [dependencies]
-tauri = { version = "1.5", features = [ "updater", "global-shortcut-all", "window-set-ignore-cursor-events", "window-set-size", "window-set-position", "window-set-focus", "window-create", "macos-private-api", "system-tray", "shell-open", "window-close", "window-hide", "window-show", "window-start-dragging", "window-unminimize"] }
+tauri = { version = "1.5", features = [ "global-shortcut-all", "window-set-ignore-cursor-events", "window-set-size", "window-set-position", "window-set-focus", "window-create", "macos-private-api", "system-tray", "shell-open", "window-close", "window-hide", "window-show", "window-start-dragging", "window-unminimize"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }

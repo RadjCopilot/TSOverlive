@@ -71,9 +71,7 @@ class App {
         const version = this.settings.tsVersion || 'ts6';
         
         if (this.currentClient) {
-            if (this.currentClient === this.ts3) {
-                this.ts3.disconnect();
-            }
+            this.currentClient.disconnect();
         }
         
         if (version === 'ts3') {
@@ -84,16 +82,9 @@ class App {
             this.ts6.connect();
         }
     }
-
-    async toggleMute() {
-        if (this.currentClient) {
-            await this.currentClient.toggleMute();
-        }
-    }
 }
 
-window.toggleSettings = () => app.ui.toggleSettings();
-window.app = null;
+window.toggleSettings = () => app?.ui?.toggleSettings();
 
 const app = new App();
 window.app = app;

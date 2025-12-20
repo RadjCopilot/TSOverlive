@@ -26,17 +26,15 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 struct Ts3Connection {
     write_stream: Option<tokio::io::WriteHalf<TcpStream>>,
-    is_connecting: bool,
 }
 
 struct Ts6Connection {
     write_stream: Option<futures_util::stream::SplitSink<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<TcpStream>>, tokio_tungstenite::tungstenite::protocol::Message>>,
-    is_connecting: bool,
 }
 
 lazy_static::lazy_static! {
-    static ref TS3_CONN: Arc<Mutex<Ts3Connection>> = Arc::new(Mutex::new(Ts3Connection { write_stream: None, is_connecting: false }));
-    static ref TS6_CONN: Arc<Mutex<Ts6Connection>> = Arc::new(Mutex::new(Ts6Connection { write_stream: None, is_connecting: false }));
+    static ref TS3_CONN: Arc<Mutex<Ts3Connection>> = Arc::new(Mutex::new(Ts3Connection { write_stream: None }));
+    static ref TS6_CONN: Arc<Mutex<Ts6Connection>> = Arc::new(Mutex::new(Ts6Connection { write_stream: None }));
 }
 
 #[tauri::command]
@@ -44,21 +42,8 @@ async fn connect_ts3(window: tauri::Window) -> Result<(), String> {
     use tokio::io::{AsyncReadExt, split};
     use tokio::time::{sleep, Duration, timeout};
     
-    println!("[TS3] connect_ts3 called");
-    
-    {
-        let mut conn = TS3_CONN.lock().await;
-        if conn.is_connecting {
-            println!("[TS3] Already connecting, skipping");
-            return Ok(());
-        }
-        conn.is_connecting = true;
-    }
-    
     tokio::spawn(async move {
         loop {
-            println!("[TS3] Attempting to connect to 127.0.0.1:25639");
-            
             let connect_result = timeout(
                 Duration::from_secs(2),
                 TcpStream::connect("127.0.0.1:25639")
@@ -66,8 +51,6 @@ async fn connect_ts3(window: tauri::Window) -> Result<(), String> {
             
             match connect_result {
                 Ok(Ok(stream)) => {
-                    println!("[TS3] Connected successfully");
-                    
                     let (mut read_half, write_half) = split(stream);
                     
                     {
@@ -82,10 +65,7 @@ async fn connect_ts3(window: tauri::Window) -> Result<(), String> {
                     
                     loop {
                         match read_half.read(&mut buffer).await {
-                            Ok(0) => {
-                                println!("[TS3] Connection closed by server");
-                                break;
-                            }
+                            Ok(0) => break,
                             Ok(n) => {
                                 if let Ok(text) = String::from_utf8(buffer[..n].to_vec()) {
                                     accumulated.push_str(&text);
@@ -94,19 +74,13 @@ async fn connect_ts3(window: tauri::Window) -> Result<(), String> {
                                         let line = accumulated[..pos].to_string();
                                         accumulated = accumulated[pos + 1..].to_string();
                                         
-                                        if !line.trim().is_empty() && !line.starts_with("notifytalkstatuschange") {
-                                            println!("[TS3] Line: {}", line.trim());
-                                            let _ = window.emit("ts3-message", line + "\n");
-                                        } else if line.starts_with("notifytalkstatuschange") {
+                                        if !line.trim().is_empty() {
                                             let _ = window.emit("ts3-message", line + "\n");
                                         }
                                     }
                                 }
                             }
-                            Err(e) => {
-                                println!("[TS3] Read error: {}", e);
-                                break;
-                            }
+                            Err(_) => break,
                         }
                     }
                     
@@ -115,17 +89,14 @@ async fn connect_ts3(window: tauri::Window) -> Result<(), String> {
                         conn.write_stream = None;
                     }
                     
-                    println!("[TS3] Disconnected, reconnecting in 3 seconds");
                     let _ = window.emit("ts3-disconnected", "");
                     sleep(Duration::from_secs(3)).await;
                 }
-                Ok(Err(e)) => {
-                    println!("[TS3] Connection failed: {}", e);
+                Ok(Err(_)) => {
                     let _ = window.emit("ts3-disconnected", "");
                     sleep(Duration::from_secs(3)).await;
                 }
                 Err(_) => {
-                    println!("[TS3] Connection timeout");
                     let _ = window.emit("ts3-disconnected", "");
                     sleep(Duration::from_secs(3)).await;
                 }
@@ -140,22 +111,11 @@ async fn connect_ts3(window: tauri::Window) -> Result<(), String> {
 async fn send_ts3_command(command: String) -> Result<(), String> {
     use tokio::io::AsyncWriteExt;
     
-    println!("[TS3] Sending command: {}", command);
-    
     let mut conn = TS3_CONN.lock().await;
     if let Some(ref mut stream) = conn.write_stream {
         let cmd = format!("{}\r\n", command);
-        match stream.write_all(cmd.as_bytes()).await {
-            Ok(_) => {
-                match stream.flush().await {
-                    Ok(_) => println!("[TS3] Command sent and flushed"),
-                    Err(e) => println!("[TS3] Failed to flush: {}", e),
-                }
-            }
-            Err(e) => println!("[TS3] Failed to send command: {}", e),
-        }
-    } else {
-        println!("[TS3] No active connection");
+        let _ = stream.write_all(cmd.as_bytes()).await;
+        let _ = stream.flush().await;
     }
     
     Ok(())
@@ -166,23 +126,21 @@ async fn send_ts6_command(command: String) -> Result<(), String> {
     use tokio_tungstenite::tungstenite::protocol::Message;
     use futures_util::SinkExt;
     
-    println!("[TS6] Sending command: {}", command);
-    
     let mut conn = TS6_CONN.lock().await;
     if let Some(ref mut stream) = conn.write_stream {
-        match stream.send(Message::Text(command)).await {
-            Ok(_) => println!("[TS6] Command sent"),
-            Err(e) => println!("[TS6] Failed to send command: {}", e),
-        }
-    } else {
-        println!("[TS6] No active connection");
+        let _ = stream.send(Message::Text(command)).await;
     }
     
     Ok(())
 }
 
 #[tauri::command]
-async fn connect_ts6(window: tauri::Window, api_key: String) -> Result<(), String> {
+async fn connect_ts6(api_key: String) -> Result<(), String> {
+    Ok(())
+}
+
+#[tauri::command]
+async fn start_ts6_connection(window: tauri::Window, api_key: String) -> Result<(), String> {
     use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
     use futures_util::{StreamExt, SinkExt};
     use serde_json::json;
@@ -190,15 +148,7 @@ async fn connect_ts6(window: tauri::Window, api_key: String) -> Result<(), Strin
     
     let url = "ws://127.0.0.1:5899";
     
-    {
-        let mut conn = TS6_CONN.lock().await;
-        if conn.is_connecting {
-            println!("[TS6] Already connecting, skipping");
-            return Ok(());
-        }
-        conn.is_connecting = true;
-    }
-    
+    let window_clone = window.clone();
     tokio::spawn(async move {
         let mut retry_delay = 3;
         
@@ -206,12 +156,7 @@ async fn connect_ts6(window: tauri::Window, api_key: String) -> Result<(), Strin
             match connect_async(url).await {
                 Ok((ws_stream, _)) => {
                     retry_delay = 3;
-                    let (write, mut read) = ws_stream.split();
-                    
-                    {
-                        let mut conn = TS6_CONN.lock().await;
-                        conn.write_stream = Some(write);
-                    }
+                    let (mut write, mut read) = ws_stream.split();
                     
                     let auth_msg = json!({
                         "type": "auth",
@@ -225,15 +170,27 @@ async fn connect_ts6(window: tauri::Window, api_key: String) -> Result<(), Strin
                         }
                     });
                     
-                    let mut conn = TS6_CONN.lock().await;
-                    if let Some(ref mut write_stream) = conn.write_stream {
-                        let _ = write_stream.send(Message::Text(auth_msg.to_string())).await;
+                    if let Err(_) = write.send(Message::Text(auth_msg.to_string())).await {
+                        let _ = window_clone.emit("ts6-disconnected", "");
+                        sleep(Duration::from_secs(retry_delay)).await;
+                        continue;
                     }
-                    drop(conn);
+                    
+                    {
+                        let mut conn = TS6_CONN.lock().await;
+                        conn.write_stream = Some(write);
+                    }
                     
                     while let Some(msg) = read.next().await {
-                        if let Ok(Message::Text(text)) = msg {
-                            let _ = window.emit("ts6-message", text);
+                        match msg {
+                            Ok(Message::Text(text)) => {
+                                if let Err(_) = window_clone.emit("ts6-message", &text) {
+                                    break;
+                                }
+                            }
+                            Ok(Message::Close(_)) => break,
+                            Err(_) => break,
+                            _ => {}
                         }
                     }
                     
@@ -242,10 +199,10 @@ async fn connect_ts6(window: tauri::Window, api_key: String) -> Result<(), Strin
                         conn.write_stream = None;
                     }
                     
-                    let _ = window.emit("ts6-disconnected", "");
+                    let _ = window_clone.emit("ts6-disconnected", "");
                 }
                 Err(_) => {
-                    let _ = window.emit("ts6-disconnected", "");
+                    let _ = window_clone.emit("ts6-disconnected", "");
                 }
             }
             
@@ -330,7 +287,7 @@ fn main() {
             }
             _ => {}
         })
-        .invoke_handler(tauri::generate_handler![connect_ts6, connect_ts3, send_ts3_command, send_ts6_command, update_click_through_menu])
+        .invoke_handler(tauri::generate_handler![connect_ts6, start_ts6_connection, connect_ts3, send_ts3_command, send_ts6_command, update_click_through_menu])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -26,7 +26,9 @@ class TS3Parser {
                     name: params.client_nickname || 'Unknown',
                     isSpeaking: params.client_flag_talking === '1',
                     isMe: clientId === myClientId,
-                    inputMuted: params.client_input_muted === '1'
+                    inputMuted: params.client_input_muted === '1',
+                    outputMuted: params.client_output_muted === '1',
+                    away: params.client_away === '1'
                 });
             }
         }
@@ -82,10 +84,21 @@ class TS3Parser {
 
     static parseClientUpdated(line) {
         const params = this.parseParams(line);
-        return {
-            clientId: parseInt(params.clid),
-            nickname: params.client_nickname,
-            inputMuted: params.client_input_muted === '1'
+        const result = {
+            clientId: parseInt(params.clid)
         };
+        if (params.client_nickname !== undefined) {
+            result.nickname = params.client_nickname;
+        }
+        if (params.client_input_muted !== undefined) {
+            result.inputMuted = params.client_input_muted === '1';
+        }
+        if (params.client_output_muted !== undefined) {
+            result.outputMuted = params.client_output_muted === '1';
+        }
+        if (params.client_away !== undefined) {
+            result.away = params.client_away === '1';
+        }
+        return result;
     }
 }
