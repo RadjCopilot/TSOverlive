@@ -7,8 +7,8 @@
     "withGlobalTauri": true
   },
   "package": {
-    "productName": "TS6 OverLive",
-    "version": "1.0.1"
+    "productName": "TeamSpeak OverLive",
+    "version": "1.1.0"
   },
   "tauri": {
     "allowlist": {
@@ -55,8 +55,8 @@
       "externalBin": [],
       "copyright": "Copyright © 2025 Radj",
       "category": "Utility",
-      "shortDescription": "TS6 OverLive",
-      "longDescription": "Оверлей виджет для TeamSpeak 6 с отображением активных пользователей в канале",
+      "shortDescription": "TeamSpeak OverLive",
+      "longDescription": "Оверлей виджет для TeamSpeak 3 и 6 с отображением активных пользователей в канале",
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
