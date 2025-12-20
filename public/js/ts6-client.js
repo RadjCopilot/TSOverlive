@@ -1,11 +1,13 @@
 class TS6Client {
     constructor() {
         this.clients = [];
-        this.currentChannel = null;
+        this.currentChannelId = null;
+        this.channelName = '';
         this.isConnected = false;
         this.isConnectedToServer = false;
         this.onUpdate = null;
         this.refreshTimeout = null;
+        this.myClientId = null;
     }
 
     async connect() {
@@ -15,56 +17,88 @@ class TS6Client {
         const { listen } = window.__TAURI__.event;
         
         await listen('ts6-disconnected', () => {
+            console.log('[TS6] Disconnected');
             this.isConnected = false;
             this.isConnectedToServer = false;
             this.clients = [];
-            this.currentChannel = null;
+            this.currentChannelId = null;
+            this.channelName = '';
+            this.myClientId = null;
             if (this.onUpdate) this.onUpdate();
         });
         
         await listen('ts6-message', (e) => {
             try {
                 const msg = JSON.parse(e.payload);
+                console.log('[TS6] Message:', msg.type);
                 
-                if (msg.type === 'auth' && msg.status?.code === 0) {
+                const authData = TS6Parser.parseAuthMessage(msg);
+                if (authData) {
+                    console.log('[TS6] Auth success');
                     this.isConnected = true;
-                    if (msg.payload?.apiKey) {
-                        localStorage.setItem('ts6-api-key', msg.payload.apiKey);
+                    if (authData.apiKey) {
+                        localStorage.setItem('ts6-api-key', authData.apiKey);
                     }
-                    const conn = msg.payload?.connections?.[0];
-                    if (conn) {
-                        this._handleConnection(conn);
+                    if (authData.connection) {
+                        this._handleConnection(authData.connection);
                     } else {
                         if (this.onUpdate) this.onUpdate();
                     }
+                    return;
                 }
                 
-                if (msg.type === 'connectStatusChanged') {
-                    const status = msg.payload?.status;
-                    if (status === 3) {
+                const statusData = TS6Parser.parseConnectStatus(msg);
+                if (statusData) {
+                    if (statusData.isConnected) {
+                        console.log('[TS6] Connected to server');
                         this.isConnectedToServer = true;
                         this._refreshData(invoke);
-                    } else if (status === 4 || status === 0) {
+                    } else if (statusData.isDisconnected) {
+                        console.log('[TS6] Disconnected from server');
                         this.isConnectedToServer = false;
                         this.clients = [];
-                        this.currentChannel = null;
+                        this.currentChannelId = null;
+                        this.channelName = '';
                         if (this.onUpdate) this.onUpdate();
                     }
+                    return;
                 }
                 
-                if (msg.type === 'clientMoved') {
-                    const movedClientId = msg.payload?.clientId;
-                    if (movedClientId && this.currentChannel) {
-                        const isOwnClient = this.clients.length === 0 || !this.clients.find(c => c.id === movedClientId);
-                        if (isOwnClient || msg.payload?.newChannelId !== this.currentChannel.id) {
-                            this._refreshData(invoke);
-                            return;
-                        }
+                const movedData = TS6Parser.parseClientMoved(msg);
+                if (movedData) {
+                    if (movedData.clientId === this.myClientId) {
+                        this._refreshData(invoke);
+                        return;
+                    }
+                    
+                    const clientExists = this.clients.find(c => c.id === movedData.clientId);
+                    if (!clientExists || movedData.newChannelId !== this.currentChannelId) {
+                        this._refreshData(invoke);
+                        return;
                     }
                 }
                 
-                if (msg.type === 'talkStatusChanged' || msg.type === 'clientMoved') {
-                    this._updateClientState(msg);
+                const updatedData = TS6Parser.parseClientUpdated(msg);
+                if (updatedData) {
+                    const client = this.clients.find(c => c.id === updatedData.clientId);
+                    if (client) {
+                        let updated = false;
+                        if (updatedData.nickname) {
+                            client.name = updatedData.nickname;
+                            updated = true;
+                        }
+                        if (updatedData.inputMuted !== undefined) {
+                            client.inputMuted = updatedData.inputMuted;
+                            updated = true;
+                        }
+                        if (updated && this.onUpdate) this.onUpdate();
+                    }
+                    return;
+                }
+                
+                const talkData = TS6Parser.parseTalkStatus(msg);
+                if (talkData) {
+                    this._updateClientState(talkData);
                 }
             } catch (err) {
                 console.error('TS6 message error:', err);
@@ -76,53 +110,28 @@ class TS6Client {
     }
 
     _handleConnection(conn) {
-        const myClient = conn.clientInfos?.find(c => c.id === conn.clientId);
-        if (!myClient) return;
+        const result = TS6Parser.parseConnection(conn, conn.clientId);
+        if (!result) {
+            console.log('[TS6] Failed to parse connection');
+            return;
+        }
         
-        const channelId = myClient.channelId;
-        
-        this.clients = [
-            {
-                id: conn.clientId,
-                name: myClient.properties?.nickname || 'You',
-                isSpeaking: myClient.properties?.flagTalking || false,
-                isMe: true
-            },
-            ...conn.clientInfos
-                .filter(c => c.channelId === channelId && c.id !== conn.clientId)
-                .map(c => ({
-                    id: c.id,
-                    name: c.properties?.nickname || 'Unknown',
-                    isSpeaking: c.properties?.flagTalking || false,
-                    isMe: false
-                }))
-        ];
-        
-        this.currentChannel = { id: channelId };
+        console.log('[TS6] Connection parsed:', result.clients.length, 'clients, channel:', result.channelName);
+        this.myClientId = conn.clientId;
+        this.clients = result.clients;
+        this.currentChannelId = result.channelId;
+        this.channelName = result.channelName;
         this.isConnectedToServer = true;
         
         if (this.onUpdate) this.onUpdate();
     }
 
-    _updateClientState(msg) {
-        if (!this.currentChannel) return;
+    _updateClientState(data) {
+        if (!this.currentChannelId) return;
         
-        const clientId = msg.payload?.clientId;
-        if (!clientId) return;
-        
-        const client = this.clients.find(c => c.id === clientId);
-        
-        if (msg.type === 'talkStatusChanged' && client) {
-            client.isSpeaking = msg.payload?.status === 1;
-            
-            // Держим себя всегда первым
-            if (!client.isMe) {
-                const me = this.clients.find(c => c.isMe);
-                const others = this.clients.filter(c => !c.isMe);
-                this.clients = me ? [me, ...others] : others;
-            }
-            
-            if (this.onUpdate) this.onUpdate();
+        const changed = UserListService.updateTalkStatus(this.clients, data.clientId, data.isSpeaking);
+        if (changed && this.onUpdate) {
+            this.onUpdate();
         }
     }
 
@@ -132,5 +141,20 @@ class TS6Client {
             invoke('connect_ts6', { apiKey: localStorage.getItem('ts6-api-key') || '' });
             this.refreshTimeout = null;
         }, 500);
+    }
+
+    async toggleMute() {
+        if (!window.__TAURI__ || !this.myClientId) return;
+        const { invoke } = window.__TAURI__.tauri;
+        const client = this.clients.find(c => c.id === this.myClientId);
+        if (!client) return;
+        const newState = !client.inputMuted;
+        await invoke('send_ts6_command', { 
+            command: JSON.stringify({
+                type: 'clientupdate',
+                payload: { properties: { inputMuted: newState } }
+            })
+        });
+        client.inputMuted = newState;
     }
 }

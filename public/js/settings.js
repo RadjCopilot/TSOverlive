@@ -24,7 +24,7 @@ class Settings {
         }
     }
 
-    save() {
+    save(reconnect = false) {
         localStorage.setItem('ts6-settings', JSON.stringify({
             opacity: this.opacity,
             minimal: this.minimal,
@@ -34,41 +34,41 @@ class Settings {
             tsVersion: this.tsVersion,
             ts3ApiKey: this.ts3ApiKey
         }));
-        if (this.onChange) this.onChange();
+        if (this.onChange) this.onChange(reconnect);
     }
 
     setOpacity(value) {
         this.opacity = value;
-        this.save();
+        this.save(false);
     }
 
     setMinimal(value) {
         this.minimal = value;
-        this.save();
+        this.save(false);
     }
 
     setMaxUsers(value) {
         this.maxUsers = value;
-        this.save();
+        this.save(false);
     }
 
     setColor(value) {
         this.color = value;
-        this.save();
+        this.save(false);
     }
 
     setClickThrough(value) {
         this.clickThrough = value;
-        this.save();
+        this.save(false);
     }
 
     setTsVersion(value) {
         this.tsVersion = value;
-        this.save();
+        this.save(true);
     }
 
     setTs3ApiKey(value) {
         this.ts3ApiKey = value;
-        this.save();
+        this.save(true);
     }
 }

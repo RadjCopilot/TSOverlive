@@ -1,6 +1,6 @@
-# TS6 Overlay
+# TeamSpeak OverLive
 
-Оверлей виджет для TeamSpeak 6 на macOS и Windows.
+Оверлей виджет для TeamSpeak 6 и TeamSpeak 3 на macOS и Windows.
 
 **Разработчик:** Radj
 
@@ -24,7 +24,7 @@ npm install
 ## Требования
 
 - Node.js 18+
-- TeamSpeak 6 Client
+- TeamSpeak 6 Client или TeamSpeak 3 Client
 - macOS 10.13+ или Windows 10+
 
 ## Разработка
@@ -43,11 +43,20 @@ npm run dist:mac
 npm run dist:win
 ```
 
-## Интеграция с TeamSpeak 6
+## Интеграция с TeamSpeak
+
+### TeamSpeak 6
 
 Приложение автоматически подключается к TeamSpeak 6 Remote App API через WebSocket (ws://127.0.0.1:5899).
 
 При первом запуске TeamSpeak 6 попросит разрешение на подключение - обязательно установите галочку "Запомнить".
+
+### TeamSpeak 3
+
+Для работы с TeamSpeak 3 необходимо:
+1. Включить ClientQuery в настройках: Tools → Options → Addons → ClientQuery
+2. Получить API ключ в настройках ClientQuery
+3. Ввести API ключ в настройках приложения
 
 ## Иконка приложения
 
@@ -58,3 +67,7 @@ npm run dist:win
 ## Автообновления
 
 Для настройки автоматических обновлений смотрите `UPDATE_GUIDE.md`.
+
+## Архитектура
+
+Подробное описание архитектуры проекта смотрите в `ARCHITECTURE.md`.
