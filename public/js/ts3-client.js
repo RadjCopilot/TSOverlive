@@ -57,7 +57,6 @@ class TS3Client {
         }));
         
         this._unlisteners.push(await listen('ts3-message', (e) => {
-            console.log('[TS3Client]', instanceId, 'ts3-message event fired');
             this._handleMessage(e.payload, triggerUpdate);
         }));
         

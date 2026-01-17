@@ -61,12 +61,17 @@ async fn connect_ts3(window: tauri::Window) -> Result<(), String> {
                     let _ = window.emit("ts3-connected", "");
                     
                     let mut accumulated = String::new();
-                    let mut buffer = vec![0u8; 8192];
+                    let mut buffer = vec![0u8; 16384];
                     
                     loop {
-                        match read_half.read(&mut buffer).await {
-                            Ok(0) => break,
-                            Ok(n) => {
+                        let read_result = timeout(
+                            Duration::from_secs(60),
+                            read_half.read(&mut buffer)
+                        ).await;
+                        
+                        match read_result {
+                            Ok(Ok(0)) => break,
+                            Ok(Ok(n)) => {
                                 if let Ok(text) = String::from_utf8(buffer[..n].to_vec()) {
                                     accumulated.push_str(&text);
                                     
@@ -80,7 +85,10 @@ async fn connect_ts3(window: tauri::Window) -> Result<(), String> {
                                     }
                                 }
                             }
-                            Err(_) => break,
+                            Ok(Err(_)) => break,
+                            Err(_) => {
+                                continue;
+                            }
                         }
                     }
                     

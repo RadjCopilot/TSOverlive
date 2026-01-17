@@ -6,6 +6,7 @@ class UI {
         this.userList = document.getElementById('userList');
         this.settingsPanel = document.getElementById('settingsPanel');
         this.isDragging = false;
+        this._currentSpeakingIds = new Set();
     }
 
     init() {
@@ -64,6 +65,14 @@ class UI {
             const token = document.getElementById('ts3Token').value.trim();
             this.settings.setTs3ApiKey(token);
             this._updateVersionUI();
+        });
+
+        document.getElementById('showOnlySpeaking').addEventListener('change', (e) => {
+            this.settings.setShowOnlySpeaking(e.target.checked);
+            const client = window.app.currentClient;
+            if (client) {
+                this.renderUsers(client.clients, client.isConnected, client.isConnectedToServer, client.channelName || '');
+            }
         });
     }
 
@@ -154,14 +163,22 @@ class UI {
         const color = this.settings.color;
         
         this.overlay.classList.toggle('minimal', this.settings.minimal);
-        this.overlay.style.background = `rgba(20, 20, 20, ${opacity})`;
-        this.overlay.style.boxShadow = opacity > 0 ? `inset 0 0 0 1px rgba(255, 255, 255, ${0.1 * opacity})` : 'none';
+        this.overlay.classList.toggle('speaking-only', this.settings.showOnlySpeaking);
+        
+        if (!this.settings.showOnlySpeaking) {
+            this.overlay.style.background = `rgba(20, 20, 20, ${opacity})`;
+            this.overlay.style.boxShadow = opacity > 0 ? `inset 0 0 0 1px rgba(255, 255, 255, ${0.1 * opacity})` : 'none';
+        } else {
+            this.overlay.style.background = 'transparent';
+            this.overlay.style.boxShadow = 'none';
+        }
         
         document.documentElement.style.setProperty('--accent-color', color);
         
         document.getElementById('opacity').value = this.settings.opacity;
         document.getElementById('opacityValue').textContent = this.settings.opacity;
         document.getElementById('minimal').checked = this.settings.minimal;
+        document.getElementById('showOnlySpeaking').checked = this.settings.showOnlySpeaking;
         document.getElementById('maxUsers').value = this.settings.maxUsers;
         document.getElementById('color').value = color;
         document.getElementById('colorPreview').style.background = color;
@@ -203,11 +220,45 @@ class UI {
         } else if (clients.length === 0) {
             newHtml = '<div style="color: rgba(255,255,255,0.6); text-align: center; padding: 20px; font-size: 12px;">Нет пользователей в канале</div>';
         } else {
-            const sorted = UserListService.sortAndLimit(clients, this.settings.maxUsers);
+            let displayClients = clients;
+            
+            if (this.settings.showOnlySpeaking) {
+                displayClients = clients.filter(c => c.isSpeaking);
+                
+                const newSpeakingIds = new Set(displayClients.map(c => c.id));
+                const removedIds = [...this._currentSpeakingIds].filter(id => !newSpeakingIds.has(id));
+                
+                removedIds.forEach(id => {
+                    const element = this.userList.querySelector(`[data-user-id="${id}"]`);
+                    if (element) {
+                        element.classList.add('slide-out');
+                        setTimeout(() => {
+                            if (element.parentNode) {
+                                element.remove();
+                            }
+                        }, 300);
+                    }
+                });
+                
+                this._currentSpeakingIds = newSpeakingIds;
+                
+                if (displayClients.length === 0 && removedIds.length === 0) {
+                    if (this.userList.innerHTML !== '') {
+                        this.userList.innerHTML = '';
+                    }
+                    return;
+                }
+                
+                if (removedIds.length > 0) {
+                    return;
+                }
+            }
+            
+            const sorted = UserListService.sortAndLimit(displayClients, this.settings.maxUsers);
             const owner = UserListService.getOwner(sorted);
             const others = UserListService.getOthers(sorted);
             
-            if (channelName) {
+            if (channelName && !this.settings.showOnlySpeaking) {
                 newHtml += `<div class="channel-name">${channelName}</div>`;
             }
             
@@ -248,7 +299,7 @@ class UI {
         const statusIcons = icons.length > 0 ? `<span class="status-icons">${icons.join('')}</span>` : '';
         
         return `
-            <div class="user-item ${user.isSpeaking ? 'speaking' : ''}">
+            <div class="user-item ${user.isSpeaking ? 'speaking' : ''}" data-user-id="${user.id}">
                 <div class="user-indicator"></div>
                 <div class="user-name">${user.name}</div>
                 ${statusIcons}

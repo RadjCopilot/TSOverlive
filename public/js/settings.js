@@ -7,6 +7,7 @@ class Settings {
         this.clickThrough = false;
         this.tsVersion = 'ts6';
         this.ts3ApiKey = '';
+        this.showOnlySpeaking = false;
         this.onChange = null;
     }
 
@@ -21,6 +22,7 @@ class Settings {
             this.clickThrough = data.clickThrough || false;
             this.tsVersion = data.tsVersion || 'ts6';
             this.ts3ApiKey = data.ts3ApiKey || '';
+            this.showOnlySpeaking = data.showOnlySpeaking || false;
         }
     }
 
@@ -32,7 +34,8 @@ class Settings {
             color: this.color,
             clickThrough: this.clickThrough,
             tsVersion: this.tsVersion,
-            ts3ApiKey: this.ts3ApiKey
+            ts3ApiKey: this.ts3ApiKey,
+            showOnlySpeaking: this.showOnlySpeaking
         }));
         if (this.onChange) this.onChange(reconnect);
     }
@@ -70,5 +73,10 @@ class Settings {
     setTs3ApiKey(value) {
         this.ts3ApiKey = value;
         this.save(true);
+    }
+
+    setShowOnlySpeaking(value) {
+        this.showOnlySpeaking = value;
+        this.save(false);
     }
 }
